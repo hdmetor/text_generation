@@ -2,31 +2,29 @@ import json
 from collections import Counter
 import numpy as np
 import itertools
+from functools import partial
 
-LIMIT = 10 ** 6
-
-seq_len = 100
+LIMIT = 10 ** 2
 step  = 5
-
-def process(doc, seq_len=100, step=step):
-    doc = start_char + doc.lower() + end_char
-    return [
-        [to_int_func(z) for z in doc[i:i + seq_len + 1]]
-        for i in range(0, len(doc) - seq_len, step)
-    ]
-
-def to_int_func(char):
-    # checking if it's a good or bad char
-    if char not in char_to_int:
-        char = unknown_char
-    return char_to_int[char]
 
 
 def flatmap(func, *iterable):
     return itertools.chain.from_iterable(map(func, *iterable))
 
+def _process(doc, seq_len, step, start_char, end_char, unknown_char, char_to_int):
+    doc = start_char + doc.lower() + end_char
+    return [
+        [to_int_func(z, unknown_char=unknown_char, char_to_int=char_to_int) for z in doc[i:i + seq_len + 1]]
+        for i in range(0, len(doc) - seq_len, step)
+    ]
 
-def get_data(seq_len=seq_len):
+def to_int_func(char, unknown_char, char_to_int):
+    # checking if it's a good or bad char
+    if char not in char_to_int:
+        char = unknown_char
+    return char_to_int[char]
+
+def get_data(seq_len):
     with open('text.json') as fp:
       all_listings = json.load(fp)['text']
 
@@ -52,7 +50,8 @@ def get_data(seq_len=seq_len):
     int_to_char = {i: ch for i, ch in enumerate(good_chars)}
 
     print('tranforming data')
-    transofmed = np.array(list(flatmap(process, all_listings)))[:LIMIT]
+    process = partial(_process, seq_len=seq_len, step=step, start_char=start_char, end_char=end_char, unknown_char=unknown_char, char_to_int=char_to_int)
+    transofmed = np.array(list(flatmap(process, all_listings[:LIMIT])))
     x_ = transofmed[:, :seq_len]
     y_ = transofmed[:, seq_len]
 
